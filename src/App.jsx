@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle } from 'lucide-react';
+import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle, RefreshCw } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ResultadosValidacion from './components/ResultadosValidacion';
 import { parseEasyCancha } from './utils/parseEasyCancha';
 import { parseControlManual } from './utils/parseControlManual';
 import { ejecutarValidaciones } from './utils/validador';
+import { obtenerDatosGoogleSheets, obtenerEstadisticasCSV } from './utils/googleSheetsAPI';
 import './App.css';
 
 function App() {
@@ -13,6 +14,8 @@ function App() {
   const [resultado, setResultado] = useState(null);
   const [procesando, setProcesando] = useState(false);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
+  const [cargandoAPI, setCargandoAPI] = useState(false);
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
 
   // Procesar archivo de EasyCancha
   const handleEasyCancha = async (file) => {
@@ -38,20 +41,58 @@ function App() {
   const handleControlManual = async (file) => {
     const buffer = await file.arrayBuffer();
     const { registros, errores } = parseControlManual(buffer);
-    
+
     if (errores.length > 0) {
       console.warn('Errores de parseo Control:', errores);
     }
-    
+
     setDatosControl(registros);
     setResultado(null); // Limpiar resultados anteriores
-    
+
     return {
       'Registros cargados': registros.length,
       'Con paquete': registros.filter(r => r.idPaquete).length,
       'Escuela': registros.filter(r => r.esEscuela).length,
       'Errores de parseo': errores.length,
     };
+  };
+
+  // Cargar datos desde Google Sheets API
+  const cargarDesdeAPI = async () => {
+    setCargandoAPI(true);
+
+    try {
+      // Obtener datos del CSV
+      const csvText = await obtenerDatosGoogleSheets();
+
+      // Obtener estadísticas
+      const stats = obtenerEstadisticasCSV(csvText);
+      console.log('📊 Estadísticas del CSV:', stats);
+
+      // Parsear como EasyCancha (asumiendo que el CSV tiene el formato de EasyCancha)
+      const { reservas, errores } = parseEasyCancha(csvText);
+
+      if (errores.length > 0) {
+        console.warn('Errores de parseo desde API:', errores);
+      }
+
+      // Actualizar estado
+      setDatosEasyCancha(reservas);
+      setUltimaActualizacion(new Date());
+      setResultado(null); // Limpiar resultados anteriores
+
+      // Mostrar mensaje de éxito
+      alert(`✅ Datos actualizados desde Google Sheets\n\n` +
+            `📊 ${reservas.length} reservas cargadas\n` +
+            `✓ USED: ${reservas.filter(r => r.esUsado).length}\n` +
+            `✓ CANCELLED: ${reservas.filter(r => r.esCancelado).length}`);
+
+    } catch (error) {
+      console.error('Error cargando desde API:', error);
+      alert(`❌ Error al cargar datos:\n\n${error.message}\n\nVerifica que la URL de Google Sheets sea correcta y esté publicada.`);
+    } finally {
+      setCargandoAPI(false);
+    }
   };
 
   // Ejecutar validación
@@ -132,7 +173,7 @@ function App() {
             icon={Database}
             processingLabel="Parseando reservas..."
           />
-          
+
           <FileUploader
             title="Control Manual"
             description="Archivo Excel con registro de asistencia"
@@ -141,6 +182,47 @@ function App() {
             icon={FileSpreadsheet}
             processingLabel="Procesando Excel..."
           />
+        </section>
+
+        {/* Sección de carga desde API */}
+        <section className="api-section">
+          <div className="api-card">
+            <div className="api-header">
+              <Database size={24} />
+              <h3>Cargar desde Google Sheets</h3>
+            </div>
+            <p className="api-description">
+              Obtén los datos más recientes directamente desde la API de Google Sheets
+            </p>
+            <button
+              className={`btn-api ${cargandoAPI ? 'loading' : ''}`}
+              onClick={cargarDesdeAPI}
+              disabled={cargandoAPI}
+            >
+              {cargandoAPI ? (
+                <>
+                  <span className="spinner-small"></span>
+                  Actualizando...
+                </>
+              ) : (
+                <>
+                  <RefreshCw size={20} />
+                  Actualizar desde API
+                </>
+              )}
+            </button>
+            {ultimaActualizacion && (
+              <p className="api-last-update">
+                Última actualización: {ultimaActualizacion.toLocaleString('es-ES', {
+                  day: '2-digit',
+                  month: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })}
+              </p>
+            )}
+          </div>
         </section>
 
         {/* Botones de acción */}

@@ -9,6 +9,7 @@ Desplegado en Netlify: [tennis-validator.netlify.app](https://tennis-validator.n
 ## ✨ Características
 
 - **Carga de archivos**: Soporta TSV/CSV de EasyCancha y Excel de control manual
+- **Integración con Google Sheets**: Botón para actualizar datos automáticamente desde una hoja de Google Sheets publicada
 - **5 validaciones automáticas**:
   1. Cruce de reservas USED con registros de control
   2. Tipo de paquete correcto para cada actividad
@@ -68,9 +69,28 @@ El Excel debe tener las siguientes columnas en orden:
 18. Observaciones
 19. Profesor
 
-### 3. Ejecutar validación
+### 3. Cargar datos desde Google Sheets (Alternativo)
 
-1. Cargar ambos archivos en la aplicación
+En lugar de cargar archivos manualmente, puedes usar la integración con Google Sheets:
+
+1. **Publicar tu Google Sheet como CSV**:
+   - Abre tu Google Sheet con los datos de EasyCancha
+   - Ve a `Archivo` → `Compartir` → `Publicar en la Web`
+   - Selecciona la pestaña que quieres publicar
+   - Cambia el formato a "CSV"
+   - Copia el enlace generado
+
+2. **Configurar la URL en la aplicación**:
+   - Edita el archivo `/src/utils/googleSheetsAPI.js`
+   - Reemplaza `GOOGLE_SHEETS_CSV_URL` con tu enlace
+
+3. **Usar el botón de actualización**:
+   - Haz clic en el botón "Actualizar desde API"
+   - Los datos se cargarán automáticamente
+
+### 4. Ejecutar validación
+
+1. Cargar ambos archivos en la aplicación (o usar el botón de actualización de API)
 2. Hacer clic en "Ejecutar Validación"
 3. Revisar resultados y exportar reporte si es necesario
 
@@ -138,7 +158,7 @@ npm run build
 ## 🔜 Roadmap
 
 - [ ] Conexión directa con API de EasyCancha
-- [ ] Conexión con Google Sheets
+- [x] Conexión con Google Sheets
 - [ ] Historial de validaciones
 - [ ] Filtros avanzados por usuario/fecha
 - [ ] Generación de reportes PDF
