@@ -1,9 +1,17 @@
 /**
- * Utilidad para obtener datos de Google Sheets publicado como CSV
+ * Utilidad para obtener datos de Google Sheets y OneDrive
  */
+
+// ============================================
+// CONFIGURACIÓN DE URLs
+// ============================================
 
 // URL del CSV publicado de Google Sheets
 const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vRV3H6RgjRRL6x6Kqoi_uSGTwCEdFLmekW9bgQdesfX_wslbjM1BkO2dv_OxjgZm2QXEu_ggWwNGdzu/pub?output=csv';
+
+// URL de descarga directa de OneDrive (Excel)
+// Formato: https://onedrive.live.com/download?...
+const ONEDRIVE_EXCEL_URL = '';
 
 /**
  * Obtiene los datos del CSV de Google Sheets
@@ -76,8 +84,112 @@ export async function verificarConexion() {
   }
 }
 
+/**
+ * Convierte URL de compartir de OneDrive a URL de descarga directa
+ * @param {string} shareUrl - URL de compartir de OneDrive
+ * @returns {string} URL de descarga directa
+ */
+export function convertirOneDriveURL(shareUrl) {
+  // Si ya es una URL de descarga, retornarla
+  if (shareUrl.includes('download?')) {
+    return shareUrl;
+  }
+
+  // Convertir URL de compartir a descarga directa
+  // Formato: https://1drv.ms/x/... → https://onedrive.live.com/download?...
+  // O https://onedrive.live.com/embed?... → https://onedrive.live.com/download?...
+
+  try {
+    const url = new URL(shareUrl);
+
+    // Si es 1drv.ms, necesitamos extraer el resid y authkey de los parámetros
+    if (url.hostname === '1drv.ms' || url.hostname.includes('onedrive.live.com')) {
+      // Extraer parámetros de la URL
+      const params = new URLSearchParams(url.search);
+      const resid = params.get('resid') || params.get('id');
+      const authkey = params.get('authkey');
+
+      if (resid && authkey) {
+        return `https://onedrive.live.com/download?resid=${resid}&authkey=${authkey}`;
+      }
+
+      // Si ya tiene el formato de embed, cambiar a download
+      if (shareUrl.includes('/embed?')) {
+        return shareUrl.replace('/embed?', '/download?');
+      }
+    }
+
+    // Si no se pudo convertir, retornar la URL original
+    return shareUrl;
+  } catch (error) {
+    console.warn('Error convirtiendo URL de OneDrive:', error);
+    return shareUrl;
+  }
+}
+
+/**
+ * Obtiene el archivo Excel desde OneDrive
+ * @param {string} customUrl - URL personalizada (opcional)
+ * @returns {Promise<ArrayBuffer>} Contenido del Excel como ArrayBuffer
+ */
+export async function obtenerExcelOneDrive(customUrl = null) {
+  try {
+    console.log('🌐 Obteniendo Excel desde OneDrive...');
+
+    const url = customUrl || ONEDRIVE_EXCEL_URL;
+
+    if (!url) {
+      throw new Error('No se ha configurado la URL de OneDrive. Edita ONEDRIVE_EXCEL_URL en googleSheetsAPI.js');
+    }
+
+    // Convertir a URL de descarga directa si es necesario
+    const downloadUrl = convertirOneDriveURL(url);
+    console.log('📥 URL de descarga:', downloadUrl);
+
+    const response = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      },
+      cache: 'no-cache'
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new Error('El archivo descargado está vacío');
+    }
+
+    console.log(`✅ Excel obtenido exitosamente (${(arrayBuffer.byteLength / 1024).toFixed(2)} KB)`);
+    return arrayBuffer;
+
+  } catch (error) {
+    console.error('❌ Error obteniendo Excel de OneDrive:', error);
+    throw new Error(`No se pudo obtener el archivo: ${error.message}`);
+  }
+}
+
+/**
+ * Obtiene estadísticas del archivo Excel
+ * @param {ArrayBuffer} arrayBuffer - Contenido del Excel
+ * @returns {Object} Estadísticas básicas
+ */
+export function obtenerEstadisticasExcel(arrayBuffer) {
+  return {
+    tamanoKB: (arrayBuffer.byteLength / 1024).toFixed(2),
+    tamanoBytes: arrayBuffer.byteLength
+  };
+}
+
 export default {
   obtenerDatosGoogleSheets,
   obtenerEstadisticasCSV,
-  verificarConexion
+  verificarConexion,
+  obtenerExcelOneDrive,
+  obtenerEstadisticasExcel,
+  convertirOneDriveURL
 };

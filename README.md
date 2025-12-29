@@ -9,7 +9,9 @@ Desplegado en Netlify: [tennis-validator.netlify.app](https://tennis-validator.n
 ## ✨ Características
 
 - **Carga de archivos**: Soporta TSV/CSV de EasyCancha y Excel de control manual
-- **Integración con Google Sheets**: Botón para actualizar datos automáticamente desde una hoja de Google Sheets publicada
+- **Integración con la nube**:
+  - **Google Sheets**: Actualización automática de datos de EasyCancha
+  - **OneDrive**: Actualización automática del Control Manual del club
 - **5 validaciones automáticas**:
   1. Cruce de reservas USED con registros de control
   2. Tipo de paquete correcto para cada actividad
@@ -69,24 +71,55 @@ El Excel debe tener las siguientes columnas en orden:
 18. Observaciones
 19. Profesor
 
-### 3. Cargar datos desde Google Sheets (Alternativo)
+### 3. Cargar datos desde la nube (Alternativo - RECOMENDADO)
 
-En lugar de cargar archivos manualmente, puedes usar la integración con Google Sheets:
+En lugar de cargar archivos manualmente, puedes usar la integración con Google Sheets y OneDrive para actualización automática:
+
+#### 🟣 Google Sheets (Datos de EasyCancha)
 
 1. **Publicar tu Google Sheet como CSV**:
    - Abre tu Google Sheet con los datos de EasyCancha
    - Ve a `Archivo` → `Compartir` → `Publicar en la Web`
    - Selecciona la pestaña que quieres publicar
    - Cambia el formato a "CSV"
-   - Copia el enlace generado
+   - Copia el enlace generado (ejemplo: `https://docs.google.com/spreadsheets/d/e/...`)
 
 2. **Configurar la URL en la aplicación**:
    - Edita el archivo `/src/utils/googleSheetsAPI.js`
    - Reemplaza `GOOGLE_SHEETS_CSV_URL` con tu enlace
 
-3. **Usar el botón de actualización**:
-   - Haz clic en el botón "Actualizar desde API"
+3. **Usar el botón**:
+   - Haz clic en "Actualizar EasyCancha" (botón morado)
    - Los datos se cargarán automáticamente
+
+#### 🔵 OneDrive (Control Manual del Club)
+
+1. **Obtener enlace de descarga de OneDrive**:
+
+   **Opción A - OneDrive Personal:**
+   - Abre tu archivo Excel en OneDrive
+   - Haz clic derecho → `Compartir`
+   - Clic en `Copiar vínculo` → Selecciona "Cualquier persona con el vínculo puede ver"
+   - Copia el enlace completo
+
+   **Opción B - OneDrive Empresarial/SharePoint:**
+   - Abre el archivo en OneDrive
+   - Haz clic en `Compartir`
+   - Configura "Cualquier persona con el vínculo puede ver"
+   - Copia el enlace de compartir
+   - O mejor aún, usa el botón "Insertar" → "Insertar en línea" para obtener el enlace de descarga directa
+
+2. **Configurar la URL en la aplicación**:
+   - Edita el archivo `/src/utils/googleSheetsAPI.js`
+   - Reemplaza `ONEDRIVE_EXCEL_URL` con tu enlace de OneDrive
+   - Ejemplo: `https://onedrive.live.com/download?resid=...&authkey=...`
+   - O: `https://1drv.ms/x/...` (se convertirá automáticamente)
+
+3. **Usar el botón**:
+   - Haz clic en "Actualizar Control" (botón azul)
+   - El Excel se descargará y procesará automáticamente
+
+💡 **Tip:** Con esta configuración, cada vez que actualices los archivos en Google Sheets y OneDrive, solo necesitas hacer clic en los botones para obtener los datos más recientes.
 
 ### 4. Ejecutar validación
 
@@ -158,7 +191,8 @@ npm run build
 ## 🔜 Roadmap
 
 - [ ] Conexión directa con API de EasyCancha
-- [x] Conexión con Google Sheets
+- [x] Conexión con Google Sheets (EasyCancha)
+- [x] Conexión con OneDrive (Control Manual)
 - [ ] Historial de validaciones
 - [ ] Filtros avanzados por usuario/fecha
 - [ ] Generación de reportes PDF

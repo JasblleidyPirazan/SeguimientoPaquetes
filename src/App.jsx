@@ -5,7 +5,12 @@ import ResultadosValidacion from './components/ResultadosValidacion';
 import { parseEasyCancha } from './utils/parseEasyCancha';
 import { parseControlManual } from './utils/parseControlManual';
 import { ejecutarValidaciones } from './utils/validador';
-import { obtenerDatosGoogleSheets, obtenerEstadisticasCSV } from './utils/googleSheetsAPI';
+import {
+  obtenerDatosGoogleSheets,
+  obtenerEstadisticasCSV,
+  obtenerExcelOneDrive,
+  obtenerEstadisticasExcel
+} from './utils/googleSheetsAPI';
 import './App.css';
 
 function App() {
@@ -14,8 +19,10 @@ function App() {
   const [resultado, setResultado] = useState(null);
   const [procesando, setProcesando] = useState(false);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
-  const [cargandoAPI, setCargandoAPI] = useState(false);
-  const [ultimaActualizacion, setUltimaActualizacion] = useState(null);
+  const [cargandoAPIGoogleSheets, setCargandoAPIGoogleSheets] = useState(false);
+  const [cargandoAPIOneDrive, setCargandoAPIOneDrive] = useState(false);
+  const [ultimaActualizacionGoogleSheets, setUltimaActualizacionGoogleSheets] = useState(null);
+  const [ultimaActualizacionOneDrive, setUltimaActualizacionOneDrive] = useState(null);
 
   // Procesar archivo de EasyCancha
   const handleEasyCancha = async (file) => {
@@ -57,9 +64,9 @@ function App() {
     };
   };
 
-  // Cargar datos desde Google Sheets API
-  const cargarDesdeAPI = async () => {
-    setCargandoAPI(true);
+  // Cargar datos desde Google Sheets API (EasyCancha)
+  const cargarDesdeGoogleSheets = async () => {
+    setCargandoAPIGoogleSheets(true);
 
     try {
       // Obtener datos del CSV
@@ -69,29 +76,67 @@ function App() {
       const stats = obtenerEstadisticasCSV(csvText);
       console.log('📊 Estadísticas del CSV:', stats);
 
-      // Parsear como EasyCancha (asumiendo que el CSV tiene el formato de EasyCancha)
+      // Parsear como EasyCancha
       const { reservas, errores } = parseEasyCancha(csvText);
 
       if (errores.length > 0) {
-        console.warn('Errores de parseo desde API:', errores);
+        console.warn('Errores de parseo desde Google Sheets:', errores);
       }
 
       // Actualizar estado
       setDatosEasyCancha(reservas);
-      setUltimaActualizacion(new Date());
+      setUltimaActualizacionGoogleSheets(new Date());
       setResultado(null); // Limpiar resultados anteriores
 
       // Mostrar mensaje de éxito
-      alert(`✅ Datos actualizados desde Google Sheets\n\n` +
+      alert(`✅ Datos de EasyCancha actualizados desde Google Sheets\n\n` +
             `📊 ${reservas.length} reservas cargadas\n` +
             `✓ USED: ${reservas.filter(r => r.esUsado).length}\n` +
             `✓ CANCELLED: ${reservas.filter(r => r.esCancelado).length}`);
 
     } catch (error) {
-      console.error('Error cargando desde API:', error);
-      alert(`❌ Error al cargar datos:\n\n${error.message}\n\nVerifica que la URL de Google Sheets sea correcta y esté publicada.`);
+      console.error('Error cargando desde Google Sheets:', error);
+      alert(`❌ Error al cargar datos de Google Sheets:\n\n${error.message}\n\nVerifica que la URL esté configurada correctamente.`);
     } finally {
-      setCargandoAPI(false);
+      setCargandoAPIGoogleSheets(false);
+    }
+  };
+
+  // Cargar datos desde OneDrive (Control Manual)
+  const cargarDesdeOneDrive = async () => {
+    setCargandoAPIOneDrive(true);
+
+    try {
+      // Obtener archivo Excel
+      const arrayBuffer = await obtenerExcelOneDrive();
+
+      // Obtener estadísticas
+      const stats = obtenerEstadisticasExcel(arrayBuffer);
+      console.log('📊 Estadísticas del Excel:', stats);
+
+      // Parsear como Control Manual
+      const { registros, errores } = parseControlManual(arrayBuffer);
+
+      if (errores.length > 0) {
+        console.warn('Errores de parseo desde OneDrive:', errores);
+      }
+
+      // Actualizar estado
+      setDatosControl(registros);
+      setUltimaActualizacionOneDrive(new Date());
+      setResultado(null); // Limpiar resultados anteriores
+
+      // Mostrar mensaje de éxito
+      alert(`✅ Control Manual actualizado desde OneDrive\n\n` +
+            `📊 ${registros.length} registros cargados\n` +
+            `✓ Con paquete: ${registros.filter(r => r.idPaquete).length}\n` +
+            `✓ Escuela: ${registros.filter(r => r.esEscuela).length}`);
+
+    } catch (error) {
+      console.error('Error cargando desde OneDrive:', error);
+      alert(`❌ Error al cargar datos de OneDrive:\n\n${error.message}\n\nVerifica que la URL esté configurada correctamente.`);
+    } finally {
+      setCargandoAPIOneDrive(false);
     }
   };
 
@@ -184,44 +229,86 @@ function App() {
           />
         </section>
 
-        {/* Sección de carga desde API */}
+        {/* Sección de carga desde APIs en la nube */}
         <section className="api-section">
-          <div className="api-card">
-            <div className="api-header">
-              <Database size={24} />
-              <h3>Cargar desde Google Sheets</h3>
-            </div>
-            <p className="api-description">
-              Obtén los datos más recientes directamente desde la API de Google Sheets
-            </p>
-            <button
-              className={`btn-api ${cargandoAPI ? 'loading' : ''}`}
-              onClick={cargarDesdeAPI}
-              disabled={cargandoAPI}
-            >
-              {cargandoAPI ? (
-                <>
-                  <span className="spinner-small"></span>
-                  Actualizando...
-                </>
-              ) : (
-                <>
-                  <RefreshCw size={20} />
-                  Actualizar desde API
-                </>
-              )}
-            </button>
-            {ultimaActualizacion && (
-              <p className="api-last-update">
-                Última actualización: {ultimaActualizacion.toLocaleString('es-ES', {
-                  day: '2-digit',
-                  month: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })}
+          <div className="api-grid">
+            {/* Google Sheets - EasyCancha */}
+            <div className="api-card api-card-google">
+              <div className="api-header">
+                <Database size={24} />
+                <h3>EasyCancha (Google Sheets)</h3>
+              </div>
+              <p className="api-description">
+                Obtén las reservas más recientes desde Google Sheets
               </p>
-            )}
+              <button
+                className={`btn-api ${cargandoAPIGoogleSheets ? 'loading' : ''}`}
+                onClick={cargarDesdeGoogleSheets}
+                disabled={cargandoAPIGoogleSheets}
+              >
+                {cargandoAPIGoogleSheets ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={20} />
+                    Actualizar EasyCancha
+                  </>
+                )}
+              </button>
+              {ultimaActualizacionGoogleSheets && (
+                <p className="api-last-update">
+                  Última actualización: {ultimaActualizacionGoogleSheets.toLocaleString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              )}
+            </div>
+
+            {/* OneDrive - Control Manual */}
+            <div className="api-card api-card-onedrive">
+              <div className="api-header">
+                <FileSpreadsheet size={24} />
+                <h3>Control Manual (OneDrive)</h3>
+              </div>
+              <p className="api-description">
+                Obtén el control manual del club desde OneDrive
+              </p>
+              <button
+                className={`btn-api ${cargandoAPIOneDrive ? 'loading' : ''}`}
+                onClick={cargarDesdeOneDrive}
+                disabled={cargandoAPIOneDrive}
+              >
+                {cargandoAPIOneDrive ? (
+                  <>
+                    <span className="spinner-small"></span>
+                    Actualizando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw size={20} />
+                    Actualizar Control
+                  </>
+                )}
+              </button>
+              {ultimaActualizacionOneDrive && (
+                <p className="api-last-update">
+                  Última actualización: {ultimaActualizacionOneDrive.toLocaleString('es-ES', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })}
+                </p>
+              )}
+            </div>
           </div>
         </section>
 

@@ -609,12 +609,31 @@ body {
   margin-bottom: 2rem;
 }
 
+.api-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
 .api-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-radius: var(--radius-lg);
   padding: 2rem;
   box-shadow: var(--shadow-lg);
   color: white;
+  transition: transform 0.3s ease;
+}
+
+.api-card:hover {
+  transform: translateY(-4px);
+}
+
+/* Estilos específicos por tipo de API */
+.api-card-google {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.api-card-onedrive {
+  background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
 }
 
 .api-header {
