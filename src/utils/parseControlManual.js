@@ -10,6 +10,16 @@ import { PRODUCTOS } from '../data/productos';
 import { normalizarHora } from './parseEasyCancha';
 
 /**
+ * Códigos de paquetes a los que se les da seguimiento
+ * Solo registros con estos códigos en COD PRODUCTO serán incluidos
+ */
+const CODIGOS_PAQUETES_PERMITIDOS = new Set([
+  2101, 2102, 2103, 2204, 2205, 2206, 2007, 2008, 2009,
+  3101, 3102, 3103, 3204, 3205, 3206, 3001, 3002, 3203,
+  3404, 3605, 3806
+]);
+
+/**
  * Mapeo de nombres de columnas del Excel (Hoja "USO")
  * Según estructura real del archivo
  */
@@ -259,6 +269,7 @@ export function parseControlManual(buffer) {
   let registrosEscuela = 0;
   let registrosLibre = 0;
   let registrosSinFecha = 0;
+  let registrosPaqueteNoPermitido = 0;
 
   for (let i = iniciar; i < datos.length; i++) {
     const fila = datos[i];
@@ -270,8 +281,12 @@ export function parseControlManual(buffer) {
     try {
       const registro = normalizarRegistroControl(fila, i + 1);
 
-      // Solo incluir registros con datos válidos
-      if (registro.fecha && registro.horaInicio && !registro.esLibre) {
+      // Validar que el registro tenga datos válidos
+      const tieneCodigoPermitido = registro.codigoProducto &&
+                                   CODIGOS_PAQUETES_PERMITIDOS.has(registro.codigoProducto);
+
+      // Solo incluir registros con datos válidos Y código de paquete permitido
+      if (registro.fecha && registro.horaInicio && !registro.esLibre && tieneCodigoPermitido) {
         registros.push(registro);
         registrosValidos++;
       } else {
@@ -288,6 +303,9 @@ export function parseControlManual(buffer) {
         }
         if (registro.esLibre) registrosLibre++;
         if (registro.esEscuela) registrosEscuela++;
+        if (registro.fecha && registro.horaInicio && !tieneCodigoPermitido) {
+          registrosPaqueteNoPermitido++;
+        }
       }
     } catch (error) {
       errores.push({ fila: i + 1, error: error.message });
@@ -302,6 +320,7 @@ export function parseControlManual(buffer) {
   console.log(`✅ Registros válidos procesados: ${registrosValidos}`);
   console.log(`📊 Registros ESCUELA (excluidos): ${registrosEscuela}`);
   console.log(`📊 Registros LIBRE (excluidos): ${registrosLibre}`);
+  console.log(`🔒 Registros con código de paquete no permitido (excluidos): ${registrosPaqueteNoPermitido}`);
   console.log(`⚠️ Registros sin fecha (excluidos): ${registrosSinFecha}`);
   console.log(`⚠️ Errores encontrados: ${errores.length}`);
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle, RefreshCw } from 'lucide-react';
-import FileUploader from './components/FileUploader';
 import ResultadosValidacion from './components/ResultadosValidacion';
 import { parseEasyCancha } from './utils/parseEasyCancha';
 import { parseControlManual } from './utils/parseControlManual';
@@ -23,46 +22,6 @@ function App() {
   const [cargandoAPIOneDrive, setCargandoAPIOneDrive] = useState(false);
   const [ultimaActualizacionGoogleSheets, setUltimaActualizacionGoogleSheets] = useState(null);
   const [ultimaActualizacionOneDrive, setUltimaActualizacionOneDrive] = useState(null);
-
-  // Procesar archivo de EasyCancha
-  const handleEasyCancha = async (file) => {
-    const texto = await file.text();
-    const { reservas, errores } = parseEasyCancha(texto);
-    
-    if (errores.length > 0) {
-      console.warn('Errores de parseo EasyCancha:', errores);
-    }
-    
-    setDatosEasyCancha(reservas);
-    setResultado(null); // Limpiar resultados anteriores
-    
-    return {
-      'Registros cargados': reservas.length,
-      'Reservas USED': reservas.filter(r => r.esUsado).length,
-      'Reservas CANCELLED': reservas.filter(r => r.esCancelado).length,
-      'Errores de parseo': errores.length,
-    };
-  };
-
-  // Procesar archivo de Control Manual
-  const handleControlManual = async (file) => {
-    const buffer = await file.arrayBuffer();
-    const { registros, errores } = parseControlManual(buffer);
-
-    if (errores.length > 0) {
-      console.warn('Errores de parseo Control:', errores);
-    }
-
-    setDatosControl(registros);
-    setResultado(null); // Limpiar resultados anteriores
-
-    return {
-      'Registros cargados': registros.length,
-      'Con paquete': registros.filter(r => r.idPaquete).length,
-      'Escuela': registros.filter(r => r.esEscuela).length,
-      'Errores de parseo': errores.length,
-    };
-  };
 
   // Cargar datos desde Google Sheets API (EasyCancha)
   const cargarDesdeGoogleSheets = async () => {
@@ -208,27 +167,6 @@ function App() {
       )}
 
       <main className="app-main">
-        {/* Sección de carga de archivos */}
-        <section className="upload-section">
-          <FileUploader
-            title="EasyCancha Export"
-            description="Archivo TSV/CSV con las reservas exportadas"
-            accept=".tsv,.csv,.txt"
-            onFileLoaded={handleEasyCancha}
-            icon={Database}
-            processingLabel="Parseando reservas..."
-          />
-
-          <FileUploader
-            title="Control Manual"
-            description="Archivo Excel con registro de asistencia"
-            accept=".xlsx,.xls"
-            onFileLoaded={handleControlManual}
-            icon={FileSpreadsheet}
-            processingLabel="Procesando Excel..."
-          />
-        </section>
-
         {/* Sección de carga desde APIs en la nube */}
         <section className="api-section">
           <div className="api-grid">
