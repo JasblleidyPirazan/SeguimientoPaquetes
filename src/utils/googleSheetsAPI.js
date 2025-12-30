@@ -11,7 +11,7 @@ const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 
 // URL de descarga directa de OneDrive (Excel)
 // Formato: https://onedrive.live.com/download?...
-const ONEDRIVE_EXCEL_URL = '';
+const ONEDRIVE_EXCEL_URL = 'https://onedrive.live.com/personal/d9591ac30acffceb/_layouts/15/doc2.aspx?resid=D9591AC30ACFFCEB!sb1b2b34040384966bb22cc8d327ef94b&cid=d9591ac30acffceb&migratedtospo=true&app=Excel';
 
 /**
  * Obtiene los datos del CSV de Google Sheets
@@ -108,14 +108,31 @@ export function convertirOneDriveURL(shareUrl) {
       const params = new URLSearchParams(url.search);
       const resid = params.get('resid') || params.get('id');
       const authkey = params.get('authkey');
+      const cid = params.get('cid');
 
-      if (resid && authkey) {
-        return `https://onedrive.live.com/download?resid=${resid}&authkey=${authkey}`;
+      // OneDrive for Business con resid
+      if (resid) {
+        if (authkey) {
+          // URL con authkey (más común para archivos compartidos públicamente)
+          return `https://onedrive.live.com/download?resid=${resid}&authkey=${authkey}`;
+        } else {
+          // URL sin authkey - intentar con resid y cid
+          console.warn('⚠️ URL de OneDrive sin authkey. El archivo debe estar compartido públicamente.');
+          // Intentar formato de descarga alternativo
+          return `https://onedrive.live.com/download?resid=${resid}${cid ? `&cid=${cid}` : ''}`;
+        }
       }
 
       // Si ya tiene el formato de embed, cambiar a download
       if (shareUrl.includes('/embed?')) {
         return shareUrl.replace('/embed?', '/download?');
+      }
+
+      // Si es un doc2.aspx (OneDrive for Business), intentar convertir
+      if (shareUrl.includes('doc2.aspx')) {
+        if (resid) {
+          return `https://onedrive.live.com/download?resid=${resid}${cid ? `&cid=${cid}` : ''}`;
+        }
       }
     }
 
