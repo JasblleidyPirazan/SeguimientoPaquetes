@@ -36,13 +36,24 @@ const COLUMNAS_EASYCANCHA = [
 ];
 
 /**
+ * Detecta el delimitador del archivo (Tab o Coma)
+ */
+function detectarDelimitador(linea) {
+  const tabs = (linea.match(/\t/g) || []).length;
+  const comas = (linea.match(/,/g) || []).length;
+
+  // Si tiene más tabs que comas, es TSV, sino es CSV
+  return tabs > comas ? '\t' : ',';
+}
+
+/**
  * Parsea una línea del archivo de EasyCancha
  */
-function parseLineaEasyCancha(linea, index) {
-  const campos = linea.split('\t');
-  
+function parseLineaEasyCancha(linea, index, delimitador) {
+  const campos = linea.split(delimitador);
+
   if (campos.length < 17) {
-    console.warn(`Línea ${index + 1}: campos insuficientes (${campos.length})`);
+    console.warn(`Línea ${index + 1}: campos insuficientes (${campos.length}/${COLUMNAS_EASYCANCHA.length}). Delimitador usado: '${delimitador === '\t' ? 'TAB' : 'COMA'}'`);
     return null;
   }
 
@@ -160,17 +171,33 @@ export function parseEasyCancha(contenido) {
   const reservas = [];
   const errores = [];
 
+  if (lineas.length === 0) {
+    console.error('El archivo está vacío');
+    return { reservas, errores };
+  }
+
+  // Detectar el delimitador usando la primera línea
+  const delimitador = detectarDelimitador(lineas[0]);
+  console.log(`📄 Delimitador detectado: ${delimitador === '\t' ? 'TAB (TSV)' : 'COMA (CSV)'}`);
+  console.log(`📊 Total de líneas a procesar: ${lineas.length}`);
+
   lineas.forEach((linea, index) => {
     try {
-      const raw = parseLineaEasyCancha(linea, index);
+      const raw = parseLineaEasyCancha(linea, index, delimitador);
       if (raw && raw.booking_id) {
         const normalizado = normalizarReservaEasyCancha(raw);
         reservas.push(normalizado);
+      } else if (raw && !raw.booking_id) {
+        console.warn(`Línea ${index + 1}: sin booking_id (podría ser header)`);
       }
     } catch (error) {
       errores.push({ linea: index + 1, error: error.message });
+      console.error(`Error en línea ${index + 1}:`, error.message);
     }
   });
+
+  console.log(`✅ Reservas parseadas exitosamente: ${reservas.length}`);
+  console.log(`⚠️ Errores encontrados: ${errores.length}`);
 
   return { reservas, errores };
 }

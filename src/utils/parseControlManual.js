@@ -200,35 +200,66 @@ function normalizarRegistroControl(fila, numeroFila) {
  * Parsea un archivo Excel de control manual
  */
 export function parseControlManual(buffer) {
+  console.log('📄 Parseando Excel de Control Manual...');
+
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
   const primeraHoja = workbook.SheetNames[0];
   const hoja = workbook.Sheets[primeraHoja];
-  
+
+  console.log(`📊 Hoja encontrada: "${primeraHoja}"`);
+
   // Convertir a array de arrays
   const datos = XLSX.utils.sheet_to_json(hoja, { header: 1, raw: true });
-  
+
+  console.log(`📊 Total de filas en Excel: ${datos.length}`);
+
   const registros = [];
   const errores = [];
-  
+
   // Saltar la primera fila si es encabezado
-  const iniciar = datos[0] && typeof datos[0][0] === 'string' && 
+  const iniciar = datos[0] && typeof datos[0][0] === 'string' &&
                   datos[0][0].toLowerCase().includes('fecha') ? 1 : 0;
-  
+
+  if (iniciar === 1) {
+    console.log('📋 Header detectado, saltando primera fila');
+    console.log('📋 Columnas:', datos[0].slice(0, 10)); // Mostrar primeras 10 columnas
+  }
+
+  let registrosValidos = 0;
+  let registrosEscuela = 0;
+  let registrosLibre = 0;
+  let registrosSinFecha = 0;
+
   for (let i = iniciar; i < datos.length; i++) {
     const fila = datos[i];
-    if (!fila || fila.length < 5) continue; // Fila vacía o incompleta
-    
+    if (!fila || fila.length < 5) {
+      console.warn(`Fila ${i + 1}: vacía o incompleta (${fila?.length || 0} columnas)`);
+      continue;
+    }
+
     try {
       const registro = normalizarRegistroControl(fila, i + 1);
-      
+
       // Solo incluir registros con datos válidos
       if (registro.fecha && registro.horaInicio && !registro.esLibre) {
         registros.push(registro);
+        registrosValidos++;
+      } else {
+        if (!registro.fecha) registrosSinFecha++;
+        if (registro.esLibre) registrosLibre++;
+        if (registro.esEscuela) registrosEscuela++;
       }
     } catch (error) {
       errores.push({ fila: i + 1, error: error.message });
+      console.error(`❌ Error en fila ${i + 1}:`, error.message);
     }
   }
+
+  console.log(`✅ Registros válidos procesados: ${registrosValidos}`);
+  console.log(`📊 Registros ESCUELA (excluidos): ${registrosEscuela}`);
+  console.log(`📊 Registros LIBRE (excluidos): ${registrosLibre}`);
+  console.log(`⚠️ Registros sin fecha (excluidos): ${registrosSinFecha}`);
+  console.log(`⚠️ Errores encontrados: ${errores.length}`);
 
   return { registros, errores };
 }
