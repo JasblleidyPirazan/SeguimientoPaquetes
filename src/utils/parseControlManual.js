@@ -139,7 +139,14 @@ function parsearValor(valorStr) {
  */
 function convertirHoraExcel(valor) {
   if (!valor) return null;
-  
+
+  // Si es un objeto Date (de cellDates: true en Excel)
+  if (valor instanceof Date) {
+    const horas = valor.getHours();
+    const minutos = valor.getMinutes();
+    return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
+  }
+
   // Si es un número (fracción del día en Excel)
   if (typeof valor === 'number') {
     const totalMinutos = Math.round(valor * 24 * 60);
@@ -147,7 +154,7 @@ function convertirHoraExcel(valor) {
     const minutos = totalMinutos % 60;
     return `${horas.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
   }
-  
+
   // Si es string con formato "6:00:00 a. m."
   return normalizarHora(String(valor));
 }
