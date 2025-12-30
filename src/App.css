@@ -636,6 +636,13 @@ body {
   background: linear-gradient(135deg, #0078d4 0%, #106ebe 100%);
 }
 
+.api-card-file {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .api-header {
   display: flex;
   align-items: center;

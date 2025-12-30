@@ -1,14 +1,13 @@
 import { useState } from 'react';
 import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle, RefreshCw } from 'lucide-react';
+import FileUploader from './components/FileUploader';
 import ResultadosValidacion from './components/ResultadosValidacion';
 import { parseEasyCancha } from './utils/parseEasyCancha';
 import { parseControlManual } from './utils/parseControlManual';
 import { ejecutarValidaciones } from './utils/validador';
 import {
   obtenerDatosGoogleSheets,
-  obtenerEstadisticasCSV,
-  obtenerExcelOneDrive,
-  obtenerEstadisticasExcel
+  obtenerEstadisticasCSV
 } from './utils/googleSheetsAPI';
 import './App.css';
 
@@ -19,9 +18,27 @@ function App() {
   const [procesando, setProcesando] = useState(false);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
   const [cargandoAPIGoogleSheets, setCargandoAPIGoogleSheets] = useState(false);
-  const [cargandoAPIOneDrive, setCargandoAPIOneDrive] = useState(false);
   const [ultimaActualizacionGoogleSheets, setUltimaActualizacionGoogleSheets] = useState(null);
-  const [ultimaActualizacionOneDrive, setUltimaActualizacionOneDrive] = useState(null);
+
+  // Procesar archivo de Control Manual cargado manualmente
+  const handleControlManual = async (file) => {
+    const buffer = await file.arrayBuffer();
+    const { registros, errores } = parseControlManual(buffer);
+
+    if (errores.length > 0) {
+      console.warn('Errores de parseo Control:', errores);
+    }
+
+    setDatosControl(registros);
+    setResultado(null); // Limpiar resultados anteriores
+
+    return {
+      'Registros cargados': registros.length,
+      'Con paquete': registros.filter(r => r.idPaquete).length,
+      'Escuela': registros.filter(r => r.esEscuela).length,
+      'Errores de parseo': errores.length,
+    };
+  };
 
   // Cargar datos desde Google Sheets API (EasyCancha)
   const cargarDesdeGoogleSheets = async () => {
@@ -58,44 +75,6 @@ function App() {
       alert(`❌ Error al cargar datos de Google Sheets:\n\n${error.message}\n\nVerifica que la URL esté configurada correctamente.`);
     } finally {
       setCargandoAPIGoogleSheets(false);
-    }
-  };
-
-  // Cargar datos desde OneDrive (Control Manual)
-  const cargarDesdeOneDrive = async () => {
-    setCargandoAPIOneDrive(true);
-
-    try {
-      // Obtener archivo Excel
-      const arrayBuffer = await obtenerExcelOneDrive();
-
-      // Obtener estadísticas
-      const stats = obtenerEstadisticasExcel(arrayBuffer);
-      console.log('📊 Estadísticas del Excel:', stats);
-
-      // Parsear como Control Manual
-      const { registros, errores } = parseControlManual(arrayBuffer);
-
-      if (errores.length > 0) {
-        console.warn('Errores de parseo desde OneDrive:', errores);
-      }
-
-      // Actualizar estado
-      setDatosControl(registros);
-      setUltimaActualizacionOneDrive(new Date());
-      setResultado(null); // Limpiar resultados anteriores
-
-      // Mostrar mensaje de éxito
-      alert(`✅ Control Manual actualizado desde OneDrive\n\n` +
-            `📊 ${registros.length} registros cargados\n` +
-            `✓ Con paquete: ${registros.filter(r => r.idPaquete).length}\n` +
-            `✓ Escuela: ${registros.filter(r => r.esEscuela).length}`);
-
-    } catch (error) {
-      console.error('Error cargando desde OneDrive:', error);
-      alert(`❌ Error al cargar datos de OneDrive:\n\n${error.message}\n\nVerifica que la URL esté configurada correctamente.`);
-    } finally {
-      setCargandoAPIOneDrive(false);
     }
   };
 
@@ -209,43 +188,16 @@ function App() {
               )}
             </div>
 
-            {/* OneDrive - Control Manual */}
-            <div className="api-card api-card-onedrive">
-              <div className="api-header">
-                <FileSpreadsheet size={24} />
-                <h3>Control Manual (OneDrive)</h3>
-              </div>
-              <p className="api-description">
-                Obtén el control manual del club desde OneDrive
-              </p>
-              <button
-                className={`btn-api ${cargandoAPIOneDrive ? 'loading' : ''}`}
-                onClick={cargarDesdeOneDrive}
-                disabled={cargandoAPIOneDrive}
-              >
-                {cargandoAPIOneDrive ? (
-                  <>
-                    <span className="spinner-small"></span>
-                    Actualizando...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw size={20} />
-                    Actualizar Control
-                  </>
-                )}
-              </button>
-              {ultimaActualizacionOneDrive && (
-                <p className="api-last-update">
-                  Última actualización: {ultimaActualizacionOneDrive.toLocaleString('es-ES', {
-                    day: '2-digit',
-                    month: '2-digit',
-                    year: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                  })}
-                </p>
-              )}
+            {/* Control Manual - Carga de archivo */}
+            <div className="api-card api-card-file">
+              <FileUploader
+                title="Control Manual"
+                description="Sube el archivo Excel con registro de asistencia"
+                accept=".xlsx,.xls"
+                onFileLoaded={handleControlManual}
+                icon={FileSpreadsheet}
+                processingLabel="Procesando Excel..."
+              />
             </div>
           </div>
         </section>
