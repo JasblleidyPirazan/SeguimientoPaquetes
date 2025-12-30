@@ -270,6 +270,9 @@ export function parseControlManual(buffer) {
   let registrosLibre = 0;
   let registrosSinFecha = 0;
   let registrosPaqueteNoPermitido = 0;
+  let registrosConCodigoPermitido = 0;
+  let registrosCodigoPermitidoSinFecha = 0;
+  let registrosCodigoPermitidoSinHora = 0;
 
   for (let i = iniciar; i < datos.length; i++) {
     const fila = datos[i];
@@ -285,6 +288,34 @@ export function parseControlManual(buffer) {
       const tieneCodigoPermitido = registro.codigoProducto &&
                                    CODIGOS_PAQUETES_PERMITIDOS.has(registro.codigoProducto);
 
+      // Contar registros con código permitido
+      if (tieneCodigoPermitido) {
+        registrosConCodigoPermitido++;
+        if (!registro.fecha) {
+          registrosCodigoPermitidoSinFecha++;
+          // Mostrar las primeras 3 filas con código permitido pero sin fecha
+          if (registrosCodigoPermitidoSinFecha <= 3) {
+            console.warn(`Fila ${i + 1} con código permitido (${registro.codigoProducto}) pero sin fecha. Contenido:`, {
+              fecha_raw: fila[0],
+              hora_raw: fila[1],
+              nombre: fila[3],
+              codigo: registro.codigoProducto
+            });
+          }
+        } else if (!registro.horaInicio) {
+          registrosCodigoPermitidoSinHora++;
+          // Mostrar las primeras 3 filas con código permitido pero sin hora
+          if (registrosCodigoPermitidoSinHora <= 3) {
+            console.warn(`Fila ${i + 1} con código permitido (${registro.codigoProducto}) pero sin hora. Contenido:`, {
+              fecha_raw: fila[0],
+              hora_raw: fila[1],
+              nombre: fila[3],
+              codigo: registro.codigoProducto
+            });
+          }
+        }
+      }
+
       // Solo incluir registros con datos válidos Y código de paquete permitido
       if (registro.fecha && registro.horaInicio && !registro.esLibre && tieneCodigoPermitido) {
         registros.push(registro);
@@ -292,14 +323,6 @@ export function parseControlManual(buffer) {
       } else {
         if (!registro.fecha) {
           registrosSinFecha++;
-          // Mostrar las primeras 3 filas sin fecha para debugging
-          if (registrosSinFecha <= 3) {
-            console.warn(`Fila ${i + 1} sin fecha. Contenido:`, {
-              fecha_raw: fila[0],
-              hora_raw: fila[1],
-              nombre: fila[3]
-            });
-          }
         }
         if (registro.esLibre) registrosLibre++;
         if (registro.esEscuela) registrosEscuela++;
@@ -318,6 +341,9 @@ export function parseControlManual(buffer) {
   }
 
   console.log(`✅ Registros válidos procesados: ${registrosValidos}`);
+  console.log(`📦 Total de registros con código permitido encontrados: ${registrosConCodigoPermitido}`);
+  console.log(`   └─ Con código permitido pero sin fecha: ${registrosCodigoPermitidoSinFecha}`);
+  console.log(`   └─ Con código permitido pero sin hora: ${registrosCodigoPermitidoSinHora}`);
   console.log(`📊 Registros ESCUELA (excluidos): ${registrosEscuela}`);
   console.log(`📊 Registros LIBRE (excluidos): ${registrosLibre}`);
   console.log(`🔒 Registros con código de paquete no permitido (excluidos): ${registrosPaqueteNoPermitido}`);
