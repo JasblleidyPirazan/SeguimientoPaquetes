@@ -11,7 +11,7 @@ const GOOGLE_SHEETS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1v
 
 // URL de descarga directa de OneDrive (Excel)
 // Formato: https://onedrive.live.com/download?...
-const ONEDRIVE_EXCEL_URL = 'https://onedrive.live.com/personal/d9591ac30acffceb/_layouts/15/doc2.aspx?resid=D9591AC30ACFFCEB!sb1b2b34040384966bb22cc8d327ef94b&cid=d9591ac30acffceb&migratedtospo=true&app=Excel';
+const ONEDRIVE_EXCEL_URL = 'https://1drv.ms/x/c/d9591ac30acffceb/IQRAs7KxOEBmSbsizI0yfvlLAR9SG8oWGd5NzOx5jlF209Q';
 
 /**
  * Obtiene los datos del CSV de Google Sheets
@@ -91,19 +91,30 @@ export async function verificarConexion() {
  */
 export function convertirOneDriveURL(shareUrl) {
   // Si ya es una URL de descarga, retornarla
-  if (shareUrl.includes('download?')) {
+  if (shareUrl.includes('download?') || shareUrl.includes('download=1')) {
     return shareUrl;
   }
 
   // Convertir URL de compartir a descarga directa
-  // Formato: https://1drv.ms/x/... → https://onedrive.live.com/download?...
+  // Formato: https://1drv.ms/x/... → https://1drv.ms/x/...?download=1
   // O https://onedrive.live.com/embed?... → https://onedrive.live.com/download?...
 
   try {
     const url = new URL(shareUrl);
 
-    // Si es 1drv.ms, necesitamos extraer el resid y authkey de los parámetros
-    if (url.hostname === '1drv.ms' || url.hostname.includes('onedrive.live.com')) {
+    // Para links cortos de 1drv.ms, agregar parámetro de descarga
+    if (url.hostname === '1drv.ms') {
+      // Si ya tiene parámetros, agregar download=1
+      if (url.search) {
+        return `${shareUrl}&download=1`;
+      } else {
+        // Si no tiene parámetros, agregar ?download=1
+        return `${shareUrl}?download=1`;
+      }
+    }
+
+    // Para OneDrive.live.com
+    if (url.hostname.includes('onedrive.live.com')) {
       // Extraer parámetros de la URL
       const params = new URLSearchParams(url.search);
       const resid = params.get('resid') || params.get('id');
