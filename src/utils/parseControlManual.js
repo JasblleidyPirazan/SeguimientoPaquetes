@@ -239,7 +239,9 @@ export function parseControlManual(buffer) {
 
   if (iniciar === 1) {
     console.log('📋 Header detectado, saltando primera fila');
-    console.log('📋 Columnas:', datos[0].slice(0, 10)); // Mostrar primeras 10 columnas
+    console.log('📋 Columnas del Excel:', datos[0]); // Mostrar TODAS las columnas
+  } else {
+    console.log('⚠️ No se detectó header. Primera fila:', datos[0]?.slice(0, 5));
   }
 
   let registrosValidos = 0;
@@ -262,13 +264,27 @@ export function parseControlManual(buffer) {
         registros.push(registro);
         registrosValidos++;
       } else {
-        if (!registro.fecha) registrosSinFecha++;
+        if (!registro.fecha) {
+          registrosSinFecha++;
+          // Mostrar las primeras 3 filas sin fecha para debugging
+          if (registrosSinFecha <= 3) {
+            console.warn(`Fila ${i + 1} sin fecha. Contenido:`, {
+              fecha_raw: fila[0],
+              hora_raw: fila[1],
+              nombre: fila[3]
+            });
+          }
+        }
         if (registro.esLibre) registrosLibre++;
         if (registro.esEscuela) registrosEscuela++;
       }
     } catch (error) {
       errores.push({ fila: i + 1, error: error.message });
-      console.error(`❌ Error en fila ${i + 1}:`, error.message);
+      // Solo mostrar los primeros 5 errores
+      if (errores.length <= 5) {
+        console.error(`❌ Error en fila ${i + 1}:`, error.message);
+        console.error(`   Contenido de la fila (primeros 5 campos):`, fila.slice(0, 5));
+      }
     }
   }
 

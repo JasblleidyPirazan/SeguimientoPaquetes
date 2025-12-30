@@ -188,11 +188,18 @@ export function parseEasyCancha(contenido) {
         const normalizado = normalizarReservaEasyCancha(raw);
         reservas.push(normalizado);
       } else if (raw && !raw.booking_id) {
-        console.warn(`Línea ${index + 1}: sin booking_id (podría ser header)`);
+        // Solo mostrar advertencia en las primeras 5 líneas
+        if (index < 5) {
+          console.warn(`Línea ${index + 1}: sin booking_id (podría ser header). Primeros campos:`, raw);
+        }
       }
     } catch (error) {
       errores.push({ linea: index + 1, error: error.message });
-      console.error(`Error en línea ${index + 1}:`, error.message);
+      // Solo mostrar errores de las primeras 5 líneas
+      if (errores.length <= 5) {
+        console.error(`❌ Error en línea ${index + 1}:`, error.message);
+        console.error(`   Contenido de la línea:`, linea.substring(0, 200));
+      }
     }
   });
 
