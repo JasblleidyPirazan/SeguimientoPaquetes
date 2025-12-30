@@ -121,10 +121,14 @@ function normalizarReservaEasyCancha(raw) {
   const cancha = extraerNumeroCancha(raw.court_name);
   const horaInicio = normalizarHora(raw.hora_inicio);
 
+  // Normalizar documento (solo números)
+  const documentoNormalizado = raw.documento_cliente ?
+    String(raw.documento_cliente).replace(/\D/g, '') : null;
+
   return {
     // Identificadores
     bookingId: raw.id_reserva,
-    documentoId: raw.documento_cliente?.toString().replace(/\D/g, '') || null, // Solo números
+    documentoId: documentoNormalizado,
 
     // Persona
     nombre: raw.nombre_cliente,
@@ -162,7 +166,7 @@ function normalizarReservaEasyCancha(raw) {
     notas: raw.comentarios,
 
     // Llave única para cruce
-    llaveCruce: `${raw.fecha}|${horaInicio}|${raw.documento_cliente?.toString().replace(/\D/g, '')}`,
+    llaveCruce: `${raw.fecha}|${horaInicio}|${documentoNormalizado || ''}`,
     llaveCruceSinDoc: `${raw.fecha}|${horaInicio}|${cancha}`,
   };
 }
