@@ -7,32 +7,36 @@ import { parse } from 'date-fns';
 import { SPORT_NAME_MAP } from '../data/productos';
 
 /**
- * Estructura de columnas del export de EasyCancha
+ * Estructura de columnas del export de EasyCancha (desde Google Sheets)
+ * IMPORTANTE: Esta estructura es diferente al export directo de EasyCancha
  */
 const COLUMNAS_EASYCANCHA = [
-  'booking_id',
-  'service_id', 
-  'sport_id',
-  'sport_name',
-  'service_name',
-  'date',
-  'start_time',
-  'end_time',
-  'duration',
-  'customer_id',
-  'first_name',
-  'last_name',
-  'email',
-  'phone',
-  'document_id',
-  'birth_date',
-  'status',
-  'notes',
-  'booked_from',
-  'col20',
-  'col21',
-  'col22',
-  'total_price'
+  'id_reserva',          // 0
+  'court_id',            // 1
+  'sport_id',            // 2
+  'sport_name',          // 3
+  'court_name',          // 4
+  'fecha',               // 5
+  'hora_inicio',         // 6
+  'hora_fin',            // 7
+  'duracion_minutos',    // 8
+  'user_id',             // 9
+  'nombre_cliente',      // 10
+  'apellido_cliente',    // 11
+  'email_cliente',       // 12
+  'telefono_cliente',    // 13
+  'documento_cliente',   // 14
+  'fecha_nacimiento',    // 15
+  'estado_reserva',      // 16 (puede no existir en algunos exports)
+  'comentarios',         // 17
+  'reservado_por',       // 18
+  'monto_cancha',        // 19
+  'monto_pagado',        // 20
+  'monto_ancillaries',   // 21
+  'monto_total',         // 22
+  'descuento',           // 23
+  'ancillaries_json',    // 24
+  'fecha_sincronizacion' // 25
 ];
 
 /**
@@ -114,52 +118,52 @@ export function normalizarHora(horaStr) {
  * Transforma los datos crudos a formato normalizado
  */
 function normalizarReservaEasyCancha(raw) {
-  const cancha = extraerNumeroCancha(raw.service_name);
-  const horaInicio = normalizarHora(raw.start_time);
-  
+  const cancha = extraerNumeroCancha(raw.court_name);
+  const horaInicio = normalizarHora(raw.hora_inicio);
+
   return {
     // Identificadores
-    bookingId: raw.booking_id,
-    documentoId: raw.document_id?.replace(/\D/g, '') || null, // Solo números
-    
+    bookingId: raw.id_reserva,
+    documentoId: raw.documento_cliente?.toString().replace(/\D/g, '') || null, // Solo números
+
     // Persona
-    nombre: raw.first_name,
-    apellido: raw.last_name,
-    nombreCompleto: `${raw.first_name} ${raw.last_name}`.toUpperCase().trim(),
-    email: raw.email,
-    telefono: raw.phone,
-    
+    nombre: raw.nombre_cliente,
+    apellido: raw.apellido_cliente,
+    nombreCompleto: `${raw.nombre_cliente || ''} ${raw.apellido_cliente || ''}`.toUpperCase().trim(),
+    email: raw.email_cliente,
+    telefono: raw.telefono_cliente,
+
     // Fecha y hora
-    fecha: raw.date, // Ya viene en formato YYYY-MM-DD
+    fecha: raw.fecha, // Ya viene en formato YYYY-MM-DD
     horaInicio: horaInicio,
-    horaFin: normalizarHora(raw.end_time),
-    duracion: parseInt(raw.duration) || 0,
-    
+    horaFin: normalizarHora(raw.hora_fin),
+    duracion: parseInt(raw.duracion_minutos) || 0,
+
     // Tipo de actividad
     sportName: raw.sport_name,
     tipoActividad: SPORT_NAME_MAP[raw.sport_name] || 'desconocido',
-    serviceName: raw.service_name,
-    
+    serviceName: raw.court_name,
+
     // Cancha
     cancha: cancha,
     esMiniTenis: cancha === 5,
     esNocturno: horaInicio ? esHorarioNocturno(horaInicio) : false,
-    
+
     // Estado
-    estado: raw.status,
-    esUsado: raw.status === 'USED',
-    esCancelado: raw.status === 'CANCELLED',
-    esIntercambiado: raw.status === 'EXCHANGED',
-    
+    estado: raw.estado_reserva,
+    esUsado: raw.estado_reserva === 'USED',
+    esCancelado: raw.estado_reserva === 'CANCELLED',
+    esIntercambiado: raw.estado_reserva === 'EXCHANGED',
+
     // Pago
-    precioTotal: parseInt(raw.total_price) || 0,
-    
+    precioTotal: parseInt(raw.monto_total) || 0,
+
     // Notas
-    notas: raw.notes,
-    
+    notas: raw.comentarios,
+
     // Llave única para cruce
-    llaveCruce: `${raw.date}|${horaInicio}|${raw.document_id?.replace(/\D/g, '')}`,
-    llaveCruceSinDoc: `${raw.date}|${horaInicio}|${cancha}`,
+    llaveCruce: `${raw.fecha}|${horaInicio}|${raw.documento_cliente?.toString().replace(/\D/g, '')}`,
+    llaveCruceSinDoc: `${raw.fecha}|${horaInicio}|${cancha}`,
   };
 }
 
@@ -184,13 +188,13 @@ export function parseEasyCancha(contenido) {
   lineas.forEach((linea, index) => {
     try {
       const raw = parseLineaEasyCancha(linea, index, delimitador);
-      if (raw && raw.booking_id) {
+      if (raw && raw.id_reserva) {
         const normalizado = normalizarReservaEasyCancha(raw);
         reservas.push(normalizado);
-      } else if (raw && !raw.booking_id) {
+      } else if (raw && !raw.id_reserva) {
         // Solo mostrar advertencia en las primeras 5 líneas
         if (index < 5) {
-          console.warn(`Línea ${index + 1}: sin booking_id (podría ser header). Primeros campos:`, raw);
+          console.warn(`Línea ${index + 1}: sin id_reserva (podría ser header). Primeros campos:`, raw);
         }
       }
     } catch (error) {

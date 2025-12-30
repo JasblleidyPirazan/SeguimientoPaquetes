@@ -43,15 +43,32 @@ const COLUMNAS_CONTROL = {
  */
 function parsearFechaEspanol(fechaStr) {
   if (!fechaStr) return null;
-  
+
+  // Si ya es un objeto Date de Excel, formatearlo directamente
+  if (fechaStr instanceof Date) {
+    const year = fechaStr.getFullYear();
+    const month = (fechaStr.getMonth() + 1).toString().padStart(2, '0');
+    const day = fechaStr.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  // Si es una fecha de Excel (número), convertirla
+  if (typeof fechaStr === 'number') {
+    const fecha = XLSX.SSF.parse_date_code(fechaStr);
+    return `${fecha.y}-${fecha.m.toString().padStart(2, '0')}-${fecha.d.toString().padStart(2, '0')}`;
+  }
+
+  // Convertir a string para parseo
+  const fechaString = String(fechaStr);
+
   // Intentar parsear formato largo español
   const meses = {
     'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
     'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
     'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12'
   };
-  
-  const match = fechaStr.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
+
+  const match = fechaString.match(/(\d{1,2})\s+de\s+(\w+)\s+de\s+(\d{4})/i);
   if (match) {
     const dia = match[1].padStart(2, '0');
     const mes = meses[match[2].toLowerCase()];
@@ -60,14 +77,8 @@ function parsearFechaEspanol(fechaStr) {
       return `${año}-${mes}-${dia}`;
     }
   }
-  
-  // Si es una fecha de Excel (número), convertirla
-  if (typeof fechaStr === 'number') {
-    const fecha = XLSX.SSF.parse_date_code(fechaStr);
-    return `${fecha.y}-${fecha.m.toString().padStart(2, '0')}-${fecha.d.toString().padStart(2, '0')}`;
-  }
-  
-  return fechaStr;
+
+  return fechaString;
 }
 
 /**
