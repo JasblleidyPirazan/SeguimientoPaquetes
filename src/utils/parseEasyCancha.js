@@ -93,15 +93,20 @@ export function esHorarioNocturno(horaStr) {
  */
 export function normalizarHora(horaStr) {
   if (!horaStr) return null;
-  
+
   // Manejar formatos como "6:00", "18:00", "6:00:00 a. m."
   const limpio = horaStr
     .replace(/\s*(a\.\s*m\.|p\.\s*m\.)/gi, '')
     .replace(/:\d{2}$/, '') // Quitar segundos si existen
     .trim();
-  
-  const [hora, minutos] = limpio.split(':').map(Number);
-  
+
+  const partes = limpio.split(':').map(Number);
+  const hora = partes[0];
+  const minutos = partes[1] || 0; // Default a 0 si no hay minutos
+
+  // Validar que hora y minutos sean números válidos
+  if (isNaN(hora) || isNaN(minutos)) return null;
+
   // Si tenía "p. m." y no es 12, sumar 12
   if (horaStr.toLowerCase().includes('p. m.') && hora !== 12) {
     return `${(hora + 12).toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
@@ -110,7 +115,7 @@ export function normalizarHora(horaStr) {
   if (horaStr.toLowerCase().includes('a. m.') && hora === 12) {
     return `00:${minutos.toString().padStart(2, '0')}`;
   }
-  
+
   return `${hora.toString().padStart(2, '0')}:${minutos.toString().padStart(2, '0')}`;
 }
 
