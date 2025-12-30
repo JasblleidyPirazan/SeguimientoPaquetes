@@ -10,29 +10,31 @@ import { PRODUCTOS } from '../data/productos';
 import { normalizarHora } from './parseEasyCancha';
 
 /**
- * Mapeo de nombres de columnas del Excel
- * Ajustar según los encabezados reales del archivo
+ * Mapeo de nombres de columnas del Excel (Hoja "USO")
+ * Según estructura real del archivo
  */
 const COLUMNAS_CONTROL = {
-  fecha: 0,
-  horaInicio: 1,
-  horaFin: 2,
-  nombre: 3,
-  documento: 4,
-  cancha: 5,
-  codigoProducto: 6,
-  nombreProducto: 7,
-  idPaquete: 8,
-  usoDePaquete: 9, // "8 DE 12"
-  clasesRestantes: 10,
-  estado: 11,
-  valorPaquete: 12,
-  metodoPago: 13,
-  valorPagado: 14,
-  comprobante: 15,
-  fechaCompra: 16,
-  observaciones: 17,
-  profesor: 18,
+  fecha: 0,                    // FECHA
+  horaInicio: 1,              // HORA INICIO
+  horaFin: 2,                 // HORA FIN
+  nombre: 3,                  // DEPORTISTA
+  documento: 4,               // IDENTIFICACIÓN
+  cancha: 5,                  // CANCHA
+  codigoProducto: 6,          // COD PRODUCTO
+  nombreProducto: 7,          // PRODUCTO
+  idPaquete: 8,               // COD SERVICIO
+  usoDePaquete: 9,            // AVANCE PAQUETE ("X DE Y")
+  clasesRestantes: 10,        // TURNOS RESTANTES
+  estado: 11,                 // ESTADO PAQUETE
+  valorPaquete: 12,           // VALOR FACTURADO
+  metodoPago: 13,             // MEDIO DE PAGO
+  valorPagado: 14,            // VALOR
+  comprobante: 15,            // TICKET
+  fechaCompra: 16,            // FECHA DE PAGO
+  observaciones: 17,          // OBSERVACIONES
+  profesor: 18,               // PROFESOR
+  revision: 19,               // REVISIÓN DE REGISTRO
+  estadoFinal: 20,            // ESTADO FINAL DEL TURNO
 };
 
 /**
@@ -89,9 +91,17 @@ function parsearUsoPaquete(usoStr) {
  * Normaliza el documento ID (solo números)
  */
 function normalizarDocumento(doc) {
-  if (!doc) return null;
+  if (doc === null || doc === undefined || doc === '') return null;
   const str = String(doc).replace(/\D/g, '');
   return str || null;
+}
+
+/**
+ * Convierte valor a string de forma segura
+ */
+function toStringSafe(valor) {
+  if (valor === null || valor === undefined) return '';
+  return String(valor);
 }
 
 /**
@@ -135,12 +145,12 @@ function esRegistroEscuela(nombre, documento) {
  * Transforma una fila del Excel a formato normalizado
  */
 function normalizarRegistroControl(fila, numeroFila) {
-  const nombre = String(fila[COLUMNAS_CONTROL.nombre] || '').toUpperCase().trim();
+  const nombre = toStringSafe(fila[COLUMNAS_CONTROL.nombre]).toUpperCase().trim();
   const documento = normalizarDocumento(fila[COLUMNAS_CONTROL.documento]);
   const fecha = parsearFechaEspanol(fila[COLUMNAS_CONTROL.fecha]);
   const horaInicio = convertirHoraExcel(fila[COLUMNAS_CONTROL.horaInicio]);
   const usoPaquete = parsearUsoPaquete(fila[COLUMNAS_CONTROL.usoDePaquete]);
-  
+
   // Ignorar registros de LIBRE o ESCUELA para validación de paquetes
   const esEscuela = esRegistroEscuela(nombre, documento);
   
@@ -162,28 +172,31 @@ function normalizarRegistroControl(fila, numeroFila) {
     
     // Producto/Paquete
     codigoProducto: parseInt(fila[COLUMNAS_CONTROL.codigoProducto]) || null,
-    nombreProducto: String(fila[COLUMNAS_CONTROL.nombreProducto] || '').trim(),
-    idPaquete: String(fila[COLUMNAS_CONTROL.idPaquete] || '').trim() || null,
-    
+    nombreProducto: toStringSafe(fila[COLUMNAS_CONTROL.nombreProducto]).trim(),
+    idPaquete: toStringSafe(fila[COLUMNAS_CONTROL.idPaquete]).trim() || null,
+
     // Uso del paquete
     usoActual: usoPaquete.usoActual,
     totalPaquete: usoPaquete.totalPaquete,
     clasesRestantes: parseInt(fila[COLUMNAS_CONTROL.clasesRestantes]) || null,
-    
+
     // Estado
-    estado: String(fila[COLUMNAS_CONTROL.estado] || '').trim(),
-    esActivo: String(fila[COLUMNAS_CONTROL.estado] || '').toUpperCase() === 'ACTIVO',
-    
+    estado: toStringSafe(fila[COLUMNAS_CONTROL.estado]).trim(),
+    esActivo: toStringSafe(fila[COLUMNAS_CONTROL.estado]).toUpperCase() === 'ACTIVO',
+
     // Valores
     valorPaquete: parsearValor(fila[COLUMNAS_CONTROL.valorPaquete]),
     valorPagado: parsearValor(fila[COLUMNAS_CONTROL.valorPagado]),
-    metodoPago: String(fila[COLUMNAS_CONTROL.metodoPago] || '').trim() || null,
-    
+    metodoPago: toStringSafe(fila[COLUMNAS_CONTROL.metodoPago]).trim() || null,
+
     // Info adicional
-    comprobante: String(fila[COLUMNAS_CONTROL.comprobante] || '').trim() || null,
-    fechaCompra: String(fila[COLUMNAS_CONTROL.fechaCompra] || '').trim() || null,
-    observaciones: String(fila[COLUMNAS_CONTROL.observaciones] || '').trim() || null,
-    profesor: String(fila[COLUMNAS_CONTROL.profesor] || '').trim() || null,
+    comprobante: toStringSafe(fila[COLUMNAS_CONTROL.comprobante]).trim() || null,
+    fechaCompra: toStringSafe(fila[COLUMNAS_CONTROL.fechaCompra]).trim() || null,
+    observaciones: toStringSafe(fila[COLUMNAS_CONTROL.observaciones]).trim() || null,
+    profesor: toStringSafe(fila[COLUMNAS_CONTROL.profesor]).trim() || null,
+
+    // Estado final del turno
+    estadoFinal: toStringSafe(fila[COLUMNAS_CONTROL.estadoFinal]).trim() || null,
     
     // Clasificación
     esEscuela: esEscuela,
@@ -203,10 +216,14 @@ export function parseControlManual(buffer) {
   console.log('📄 Parseando Excel de Control Manual...');
 
   const workbook = XLSX.read(buffer, { type: 'array', cellDates: true });
-  const primeraHoja = workbook.SheetNames[0];
-  const hoja = workbook.Sheets[primeraHoja];
 
-  console.log(`📊 Hoja encontrada: "${primeraHoja}"`);
+  console.log(`📊 Hojas disponibles en el Excel: ${workbook.SheetNames.join(', ')}`);
+
+  // Buscar la hoja "USO" específicamente
+  const nombreHoja = workbook.SheetNames.find(name => name.toUpperCase() === 'USO') || workbook.SheetNames[0];
+  const hoja = workbook.Sheets[nombreHoja];
+
+  console.log(`📊 Hoja seleccionada: "${nombreHoja}"`);
 
   // Convertir a array de arrays
   const datos = XLSX.utils.sheet_to_json(hoja, { header: 1, raw: true });
