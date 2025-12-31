@@ -252,7 +252,11 @@ function App() {
 
         {/* Resultados */}
         {resultado && (
-          <ResultadosValidacion resultado={resultado} />
+          <ResultadosValidacion
+            resultado={resultado}
+            reservasEasyCancha={datosEasyCancha}
+            registrosControl={datosControl}
+          />
         )}
       </main>
 
