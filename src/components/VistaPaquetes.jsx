@@ -371,14 +371,38 @@ function calcularMetricasPaquetes(reservasEasyCancha, registrosControl, errores)
     )
   };
 
+  console.log('🔍 Filtrado de errores de paquetes:', {
+    totalCriticos: errores.criticos.length,
+    criticosPaquetes: erroresPaquetes.criticos.length,
+    totalAdvertencias: errores.advertencias.length,
+    advertenciasPaquetes: erroresPaquetes.advertencias.length,
+    codigosCriticos: erroresPaquetes.criticos.map(e => e.codigo),
+    codigosAdvertencias: erroresPaquetes.advertencias.map(e => e.codigo)
+  });
+
   // Agrupar errores por usuario
   const erroresPorUsuario = new Map();
 
   [...erroresPaquetes.criticos, ...erroresPaquetes.advertencias].forEach(error => {
-    const doc = error.reserva?.documento ||
-                error.control?.documentoId ||
-                error.datos?.reserva?.documento ||
-                error.datos?.control?.documentoId;
+    // Extraer documento según la estructura del error
+    let doc = null;
+
+    // Estructura 1: { control, reserva } - objetos completos directos
+    if (error.control?.documentoId) {
+      doc = error.control.documentoId;
+    } else if (error.reserva?.documento) {
+      doc = error.reserva.documento;
+    }
+    // Estructura 2: { paquete: {...} } - errores de conteo
+    else if (error.paquete?.documento) {
+      doc = error.paquete.documento;
+    }
+
+    console.log('📊 Error de paquete:', {
+      codigo: error.codigo,
+      doc,
+      estructura: error
+    });
 
     if (doc) {
       if (!erroresPorUsuario.has(doc)) {
@@ -396,12 +420,31 @@ function calcularMetricasPaquetes(reservasEasyCancha, registrosControl, errores)
   // Construir lista de usuarios con problemas
   const usuariosConProblemas = [];
 
+  console.log('👥 Total de usuarios con errores de paquetes:', erroresPorUsuario.size);
+
   erroresPorUsuario.forEach((erroresUsuario, documento) => {
     const usuarioData = usuariosPaquetes.get(documento);
-    const nombre = usuarioData?.nombre ||
-                   erroresUsuario.criticos[0]?.reserva?.nombre ||
-                   erroresUsuario.advertencias[0]?.reserva?.nombre ||
-                   'Desconocido';
+
+    // Buscar nombre desde múltiples fuentes
+    let nombre = usuarioData?.nombre;
+
+    if (!nombre) {
+      const todosErrores = [...erroresUsuario.criticos, ...erroresUsuario.advertencias];
+      for (const error of todosErrores) {
+        if (error.control?.nombreCompleto) {
+          nombre = error.control.nombreCompleto;
+          break;
+        } else if (error.reserva?.nombre) {
+          nombre = error.reserva.nombre;
+          break;
+        } else if (error.paquete?.nombre) {
+          nombre = error.paquete.nombre;
+          break;
+        }
+      }
+    }
+
+    nombre = nombre || 'Usuario Desconocido';
 
     // Contar paquetes activos del usuario
     const paquetesActivosUsuario = usuarioData
@@ -487,9 +530,12 @@ function agruparErroresPorTipo(errores) {
   errores.forEach(error => {
     const tipo = error.codigo;
     if (!agrupados[tipo]) {
+      // Obtener el primer mensaje como ejemplo
+      const mensajeEjemplo = error.mensaje || traducirTipoError(tipo);
+
       agrupados[tipo] = {
         tipo: traducirTipoError(tipo),
-        descripcion: error.mensaje,
+        descripcion: mensajeEjemplo,
         cantidad: 0,
         severidad: error.tipo === 'CRITICO' ? 'critico' : 'advertencia'
       };
