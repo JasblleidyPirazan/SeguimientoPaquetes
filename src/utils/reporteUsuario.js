@@ -58,10 +58,14 @@ function filtrarErroresUsuario(documentoId, errores) {
 
   // Función helper para verificar si un error pertenece al usuario
   const perteneceAUsuario = (error) => {
+    // Estructura 1: objetos directos
     if (error.reserva?.documento === documentoId) return true;
     if (error.control?.documentoId === documentoId) return true;
+    // Estructura 2: objetos anidados en datos
     if (error.datos?.reserva?.documento === documentoId) return true;
     if (error.datos?.control?.documentoId === documentoId) return true;
+    // Estructura 3: errores de paquete
+    if (error.paquete?.documento === documentoId) return true;
     return false;
   };
 
@@ -77,23 +81,64 @@ function filtrarErroresUsuario(documentoId, errores) {
  * Crea la hoja de resumen ejecutivo
  */
 function crearHojaResumen(documentoId, nombreUsuario, reservas, registros, errores) {
+  // Agrupar errores por tipo para el resumen
+  const errorPorTipo = agruparErroresPorTipo(errores);
+
   const data = [
     ['🎾 REPORTE DE INCONSISTENCIAS'],
     [`${nombreUsuario} (Documento: ${documentoId})`],
     [],
-    ['📊 RESUMEN EJECUTIVO'],
-    ['Métrica', 'Valor'],
-    ['Reservas USED en API', reservas.filter(r => r.esUsado).length],
-    ['Registros "Usada" en Control', registros.filter(r => r.estadoFinal === 'Usada').length],
-    ['Diferencia', Math.abs(reservas.filter(r => r.esUsado).length - registros.filter(r => r.estadoFinal === 'Usada').length)],
-    [],
-    ['📈 INCONSISTENCIAS ENCONTRADAS'],
-    ['Tipo', 'Cantidad'],
-    ['🔴 Críticas', errores.criticos.length],
-    ['🟡 Advertencias', errores.advertencias.length],
-    ['🔵 Información', errores.info.length],
-    ['TOTAL', errores.criticos.length + errores.advertencias.length + errores.info.length]
+    ['⚠️ DASHBOARD DE INCONSISTENCIAS'],
+    []
   ];
+
+  // Contar errores por tipo
+  const contadores = {
+    reservasSinControl: errorPorTipo[CODIGO_ERROR.RESERVA_SIN_CONTROL]?.length || 0,
+    controlSinReserva: errorPorTipo[CODIGO_ERROR.CONTROL_SIN_RESERVA]?.length || 0,
+    paqueteIncorrecto: errorPorTipo[CODIGO_ERROR.PAQUETE_INCORRECTO]?.length || 0,
+    conteoDiferente: errorPorTipo[CODIGO_ERROR.CONTEO_DIFERENTE]?.length || 0,
+    conteoExcedido: errorPorTipo[CODIGO_ERROR.CONTEO_EXCEDIDO]?.length || 0,
+    canceladoConDescuento: errorPorTipo[CODIGO_ERROR.CANCELADO_CON_DESCUENTO]?.length || 0,
+    dobleDescuento: errorPorTipo[CODIGO_ERROR.DOBLE_DESCUENTO]?.length || 0
+  };
+
+  // Mostrar solo los tipos de error que existen
+  data.push(['Tipo de Inconsistencia', 'Cantidad', 'Severidad']);
+
+  if (contadores.reservasSinControl > 0) {
+    data.push(['Reservas USED sin registro en Control', contadores.reservasSinControl, '🔴 CRÍTICO']);
+  }
+  if (contadores.controlSinReserva > 0) {
+    data.push(['Registros en Control sin reserva USED', contadores.controlSinReserva, '🟡 ADVERTENCIA']);
+  }
+  if (contadores.paqueteIncorrecto > 0) {
+    data.push(['Paquete ≠ Tipo de Actividad', contadores.paqueteIncorrecto, '🔴 CRÍTICO']);
+  }
+  if (contadores.conteoDiferente > 0) {
+    data.push(['Error en secuencia de paquete (X de Y)', contadores.conteoDiferente, '🟡 ADVERTENCIA']);
+  }
+  if (contadores.conteoExcedido > 0) {
+    data.push(['Paquete excede límite permitido', contadores.conteoExcedido, '🔴 CRÍTICO']);
+  }
+  if (contadores.canceladoConDescuento > 0) {
+    data.push(['Reserva CANCELLED con descuento', contadores.canceladoConDescuento, '🟡 ADVERTENCIA']);
+  }
+  if (contadores.dobleDescuento > 0) {
+    data.push(['Doble descuento aplicado', contadores.dobleDescuento, '🔴 CRÍTICO']);
+  }
+
+  data.push([]);
+  data.push(['TOTAL INCONSISTENCIAS', errores.criticos.length + errores.advertencias.length + errores.info.length]);
+  data.push(['├─ Críticas (requieren acción inmediata)', errores.criticos.length]);
+  data.push(['├─ Advertencias (revisar y corregir)', errores.advertencias.length]);
+  data.push(['└─ Información (solo referencia)', errores.info.length]);
+
+  data.push([]);
+  data.push(['📊 TOTALES GENERALES']);
+  data.push(['Reservas USED en API EasyCancha', reservas.filter(r => r.esUsado).length]);
+  data.push(['Registros "Usada" en Control Manual', registros.filter(r => r.estadoFinal === 'Usada').length]);
+  data.push(['Total de paquetes registrados', new Set(registros.filter(r => r.idPaquete).map(r => `${r.codigoProducto}-${r.idPaquete}`)).size]);
 
   return XLSX.utils.aoa_to_sheet(data);
 }
