@@ -163,15 +163,17 @@ function crearHojaInconsistencias(errores, reservas, registros) {
     data.push(['Fecha', 'Hora', 'Tipo Actividad', 'Cancha', 'Estado API', 'Observación']);
 
     errorPorTipo[CODIGO_ERROR.RESERVA_SIN_CONTROL].forEach(error => {
-      const reserva = error.datos?.reserva || error.reserva;
-      data.push([
-        reserva.fecha,
-        reserva.hora || reserva.horaInicio,
-        reserva.tipoActividad || reserva.sportName,
-        reserva.cancha,
-        'USED ✓',
-        error.mensaje
-      ]);
+      const reserva = error.reserva || error.datos?.reserva;
+      if (reserva) {
+        data.push([
+          reserva.fecha || 'N/A',
+          reserva.hora || reserva.horaInicio || 'N/A',
+          reserva.tipoActividad || reserva.sportName || 'N/A',
+          reserva.cancha || 'N/A',
+          'USED ✓',
+          error.mensaje
+        ]);
+      }
     });
 
     data.push([]);
@@ -184,14 +186,16 @@ function crearHojaInconsistencias(errores, reservas, registros) {
     data.push(['Fecha', 'Hora', 'Paquete', 'Avance', 'Observación']);
 
     errorPorTipo[CODIGO_ERROR.CONTROL_SIN_RESERVA].forEach(error => {
-      const control = error.datos?.control || error.control;
-      data.push([
-        control.fecha,
-        control.horaInicio,
-        control.nombreProducto,
-        control.usoDePaquete,
-        control.observaciones || error.mensaje
-      ]);
+      const control = error.control || error.datos?.control;
+      if (control) {
+        data.push([
+          control.fecha || 'N/A',
+          control.horaInicio || control.hora || 'N/A',
+          control.nombreProducto || 'N/A',
+          control.usoDePaquete || 'N/A',
+          control.observaciones || error.mensaje
+        ]);
+      }
     });
 
     data.push([]);
@@ -204,15 +208,17 @@ function crearHojaInconsistencias(errores, reservas, registros) {
     data.push(['Fecha', 'Hora', 'API dice', 'Control usa', 'Observación']);
 
     errorPorTipo[CODIGO_ERROR.PAQUETE_INCORRECTO].forEach(error => {
-      const reserva = error.datos?.reserva || error.reserva;
-      const control = error.datos?.control || error.control;
-      data.push([
-        reserva.fecha,
-        reserva.hora || reserva.horaInicio,
-        reserva.tipoActividad || reserva.sportName,
-        control?.nombreProducto || 'N/A',
-        error.mensaje
-      ]);
+      const reserva = error.reserva || error.datos?.reserva;
+      const control = error.control || error.datos?.control;
+      if (reserva) {
+        data.push([
+          reserva.fecha || 'N/A',
+          reserva.hora || reserva.horaInicio || 'N/A',
+          reserva.tipoActividad || reserva.sportName || 'N/A',
+          control?.nombreProducto || 'N/A',
+          error.mensaje
+        ]);
+      }
     });
 
     data.push([]);
@@ -222,15 +228,17 @@ function crearHojaInconsistencias(errores, reservas, registros) {
   // INCONSISTENCIA 4: Conteo diferente
   if (errorPorTipo[CODIGO_ERROR.CONTEO_DIFERENTE]?.length > 0) {
     data.push([`🔵 INCONSISTENCIA ${inconsistenciaNumero}: Error en Denominador de Paquete`]);
-    data.push(['Fecha', 'Avance Registrado', 'Observación']);
+    data.push(['Paquete ID', 'Usuario', 'Observación']);
 
     errorPorTipo[CODIGO_ERROR.CONTEO_DIFERENTE].forEach(error => {
-      const control = error.datos?.control || error.control;
-      data.push([
-        control.fecha,
-        control.usoDePaquete,
-        error.mensaje
-      ]);
+      const paquete = error.paquete;
+      if (paquete) {
+        data.push([
+          paquete.id || 'N/A',
+          paquete.nombre || 'N/A',
+          error.mensaje
+        ]);
+      }
     });
 
     data.push([]);
@@ -243,15 +251,39 @@ function crearHojaInconsistencias(errores, reservas, registros) {
     data.push(['Fecha', 'Hora', 'Paquete', 'Estado API', 'Observación']);
 
     errorPorTipo[CODIGO_ERROR.CANCELADO_CON_DESCUENTO].forEach(error => {
-      const reserva = error.datos?.reserva || error.reserva;
-      const control = error.datos?.control || error.control;
-      data.push([
-        reserva.fecha,
-        reserva.hora || reserva.horaInicio,
-        control?.nombreProducto || 'N/A',
-        'CANCELLED',
-        error.mensaje
-      ]);
+      const reserva = error.reserva || error.datos?.reserva;
+      const control = error.control || error.datos?.control;
+      if (reserva) {
+        data.push([
+          reserva.fecha || 'N/A',
+          reserva.hora || reserva.horaInicio || 'N/A',
+          control?.nombreProducto || 'N/A',
+          'CANCELLED',
+          error.mensaje
+        ]);
+      }
+    });
+
+    data.push([]);
+    inconsistenciaNumero++;
+  }
+
+  // INCONSISTENCIA: Conteo excedido
+  if (errorPorTipo[CODIGO_ERROR.CONTEO_EXCEDIDO]?.length > 0) {
+    data.push([`🔴 INCONSISTENCIA ${inconsistenciaNumero}: Paquete excede límite permitido`]);
+    data.push(['Paquete ID', 'Usuario', 'Uso Máximo', 'Total Permitido', 'Observación']);
+
+    errorPorTipo[CODIGO_ERROR.CONTEO_EXCEDIDO].forEach(error => {
+      const paquete = error.paquete;
+      if (paquete) {
+        data.push([
+          paquete.id || 'N/A',
+          paquete.nombre || 'N/A',
+          paquete.maxUso || 'N/A',
+          paquete.total || 'N/A',
+          error.mensaje
+        ]);
+      }
     });
 
     data.push([]);
