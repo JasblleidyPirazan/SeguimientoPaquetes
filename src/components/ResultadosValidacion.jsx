@@ -1,14 +1,21 @@
 import { useState } from 'react';
-import { 
-  AlertTriangle, 
-  AlertCircle, 
-  Info, 
-  ChevronDown, 
+import {
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  ChevronDown,
   ChevronRight,
   CheckCircle,
   Download,
-  Filter
+  Filter,
+  FileText,
+  User
 } from 'lucide-react';
+import {
+  generarReporteUsuario,
+  descargarReporte,
+  obtenerListaUsuarios
+} from '../utils/reporteUsuario';
 
 /**
  * Tarjeta de resumen
@@ -128,12 +135,22 @@ function ListaErrores({ titulo, errores, tipo }) {
 /**
  * Componente principal de resultados
  */
-export default function ResultadosValidacion({ resultado, onExportar }) {
+export default function ResultadosValidacion({
+  resultado,
+  reservasEasyCancha = [],
+  registrosControl = [],
+  onExportar
+}) {
   const [filtroActivo, setFiltroActivo] = useState('todos');
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState('');
+  const [mostrarSelectorUsuario, setMostrarSelectorUsuario] = useState(false);
 
   if (!resultado) return null;
 
   const { resumen, errores, validaciones } = resultado;
+
+  // Obtener lista de usuarios
+  const listaUsuarios = obtenerListaUsuarios(reservasEasyCancha, registrosControl);
 
   const exportarJSON = () => {
     const blob = new Blob([JSON.stringify(resultado, null, 2)], { 
@@ -149,16 +166,16 @@ export default function ResultadosValidacion({ resultado, onExportar }) {
 
   const exportarCSV = () => {
     const lineas = ['Tipo,Código,Mensaje,Fecha,Hora,Documento,Nombre'];
-    
+
     [...errores.criticos, ...errores.advertencias].forEach(error => {
       const fecha = error.reserva?.fecha || error.control?.fecha || '';
       const hora = error.reserva?.hora || error.control?.hora || '';
       const doc = error.reserva?.documento || error.control?.documento || '';
       const nombre = error.reserva?.nombre || error.control?.nombre || '';
-      
+
       lineas.push(`${error.tipo},${error.codigo},"${error.mensaje}",${fecha},${hora},${doc},"${nombre}"`);
     });
-    
+
     const blob = new Blob([lineas.join('\n')], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -168,11 +185,48 @@ export default function ResultadosValidacion({ resultado, onExportar }) {
     URL.revokeObjectURL(url);
   };
 
+  const generarReporteDeUsuario = () => {
+    if (!usuarioSeleccionado) {
+      alert('Por favor selecciona un usuario');
+      return;
+    }
+
+    const usuario = listaUsuarios.find(u => u.documento === usuarioSeleccionado);
+    if (!usuario) {
+      alert('Usuario no encontrado');
+      return;
+    }
+
+    try {
+      const workbook = generarReporteUsuario(
+        usuario.documento,
+        usuario.nombre,
+        reservasEasyCancha,
+        registrosControl,
+        resultado
+      );
+
+      descargarReporte(workbook, usuario.nombre, usuario.documento);
+      alert(`✅ Reporte generado para ${usuario.nombre}`);
+      setMostrarSelectorUsuario(false);
+      setUsuarioSeleccionado('');
+    } catch (error) {
+      console.error('Error generando reporte:', error);
+      alert(`❌ Error al generar reporte: ${error.message}`);
+    }
+  };
+
   return (
     <div className="resultados-validacion">
       <div className="resultados-header">
         <h2>Resultados de Validación</h2>
         <div className="acciones">
+          <button
+            className="btn-primary btn-reporte-usuario"
+            onClick={() => setMostrarSelectorUsuario(!mostrarSelectorUsuario)}
+          >
+            <FileText size={16} /> Reporte por Usuario
+          </button>
           <button className="btn-secondary" onClick={exportarCSV}>
             <Download size={16} /> CSV
           </button>
@@ -181,6 +235,55 @@ export default function ResultadosValidacion({ resultado, onExportar }) {
           </button>
         </div>
       </div>
+
+      {/* Selector de Usuario */}
+      {mostrarSelectorUsuario && (
+        <div className="selector-usuario-panel">
+          <div className="selector-header">
+            <User size={20} />
+            <h3>Seleccionar Usuario para Reporte Detallado</h3>
+          </div>
+          <div className="selector-content">
+            <select
+              value={usuarioSeleccionado}
+              onChange={(e) => setUsuarioSeleccionado(e.target.value)}
+              className="select-usuario"
+            >
+              <option value="">-- Selecciona un usuario --</option>
+              {listaUsuarios.map(usuario => (
+                <option key={usuario.documento} value={usuario.documento}>
+                  {usuario.nombre} (Doc: {usuario.documento})
+                </option>
+              ))}
+            </select>
+            <div className="selector-acciones">
+              <button
+                className="btn-primary"
+                onClick={generarReporteDeUsuario}
+                disabled={!usuarioSeleccionado}
+              >
+                <Download size={16} /> Generar Reporte Excel
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={() => {
+                  setMostrarSelectorUsuario(false);
+                  setUsuarioSeleccionado('');
+                }}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+          <div className="selector-info">
+            <Info size={14} />
+            <span>
+              El reporte incluirá: resumen ejecutivo, inconsistencias detalladas,
+              paquetes y historial completo de actividades.
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Tarjetas de resumen */}
       <div className="resumen-grid">
