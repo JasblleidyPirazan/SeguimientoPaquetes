@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle, RefreshCw } from 'lucide-react';
+import { Database, FileSpreadsheet, Play, RotateCcw, HelpCircle, RefreshCw, List, Package } from 'lucide-react';
 import FileUploader from './components/FileUploader';
 import ResultadosValidacion from './components/ResultadosValidacion';
+import VistaPaquetes from './components/VistaPaquetes';
 import { parseEasyCancha } from './utils/parseEasyCancha';
 import { parseControlManual } from './utils/parseControlManual';
 import { ejecutarValidaciones } from './utils/validador';
@@ -18,6 +19,7 @@ function App() {
   const [procesando, setProcesando] = useState(false);
   const [mostrarAyuda, setMostrarAyuda] = useState(false);
   const [cargandoAPIGoogleSheets, setCargandoAPIGoogleSheets] = useState(false);
+  const [vistaActiva, setVistaActiva] = useState('completa'); // 'completa' o 'paquetes'
   const [ultimaActualizacionGoogleSheets, setUltimaActualizacionGoogleSheets] = useState(null);
 
   // Procesar archivo de Control Manual cargado manualmente
@@ -252,11 +254,40 @@ function App() {
 
         {/* Resultados */}
         {resultado && (
-          <ResultadosValidacion
-            resultado={resultado}
-            reservasEasyCancha={datosEasyCancha}
-            registrosControl={datosControl}
-          />
+          <>
+            {/* Tabs para cambiar de vista */}
+            <div className="resultados-tabs">
+              <button
+                className={`tab-btn ${vistaActiva === 'completa' ? 'active' : ''}`}
+                onClick={() => setVistaActiva('completa')}
+              >
+                <List size={18} />
+                Vista Completa
+              </button>
+              <button
+                className={`tab-btn ${vistaActiva === 'paquetes' ? 'active' : ''}`}
+                onClick={() => setVistaActiva('paquetes')}
+              >
+                <Package size={18} />
+                Vista de Paquetes
+              </button>
+            </div>
+
+            {/* Renderizar vista según selección */}
+            {vistaActiva === 'completa' ? (
+              <ResultadosValidacion
+                resultado={resultado}
+                reservasEasyCancha={datosEasyCancha}
+                registrosControl={datosControl}
+              />
+            ) : (
+              <VistaPaquetes
+                resultado={resultado}
+                reservasEasyCancha={datosEasyCancha}
+                registrosControl={datosControl}
+              />
+            )}
+          </>
         )}
       </main>
 
